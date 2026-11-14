@@ -4,12 +4,14 @@ import numpy as np
 import re
 from tensorflow import keras
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D,MaxPooling2D,Flatten,Dropout,Dense, AveragePooling2D
 from tensorflow.keras.utils import set_random_seed
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.optimizers import Adam
 from sklearn.metrics import accuracy_score
+import cv2
 import pandas as pd
 
 TF_ENABLE_ONEDNN_OPTS=0
@@ -74,62 +76,70 @@ def clean_dataframe(df):
     return df
 
 
-# def make_model():
-#     # making the model
-#     model = Sequential()
-#     model.add(Conv2D(16, kernel_size=(2, 2), input_shape=(28,28,1,), activation="sigmoid"))
-#     model.add(MaxPooling2D(pool_size=(1, 1)))
-#     model.add(Conv2D(8, kernel_size=(2, 2), input_shape=(28,28,1,), activation="sigmoid"))
-#     model.add(MaxPooling2D(pool_size=(1, 1)))
+def make_model():
+    # making the model
+    model = Sequential()
+    model.add(Conv2D(16, kernel_size=(2, 2), input_shape=(28,28,1,), activation="sigmoid"))
+    model.add(MaxPooling2D(pool_size=(1, 1)))
+    model.add(Conv2D(8, kernel_size=(2, 2), input_shape=(28,28,1,), activation="sigmoid"))
+    model.add(MaxPooling2D(pool_size=(1, 1)))
 
-#     model.add(Flatten())
+    model.add(Flatten())
 
-#     # adding dropout
-#     model.add(Dropout(0.05))
-#     model.add(Dense(3000,  activation='relu'))
-#     model.add(Dense(NUM_CLASSES,  activation='softmax')) # total_num_classes, activation
+    # adding dropout
+    model.add(Dropout(0.05))
+    model.add(Dense(3000,  activation='relu'))
+    model.add(Dense(NUM_CLASSES,  activation='softmax')) # total_num_classes, activation
 
-#     # visualize the model design
-#     model.summary()
+    # visualize the model design
+    model.summary()
 
-#     return model
+    return model
 
-# def get_train_test_split(df):
-#     pass
-#     # getting training and testing data
-   
-#     # (x_train, y_train), (x_test, y_test) 
+def get_train_test_split(df, n):
+    # getting training and testing data
+    train_df = pd.DataFrame()
 
-#     # x_train = np.expand_dims(x_train, -1)
-#     # x_test = np.expand_dims(x_test, -1)
+    # Take n number of examples from each class for training
+    for c in CLASSES_LIST:
+        train_df = pd.concat([train_df, df.loc[df['Finding Labels'] == c].head(n)], axis=0)
 
-#     # print (x_train.shape)
-#     # print (y_train.shape)
+    images = [cv2.imread('RAE---NIH-Chest-X-rays-Classifier-/data/images/' + x, cv2.IMREAD_GRAYSCALE) for x in train_df['Image Index']]
+    x_train, y_train, x_test, y_test = train_test_split(images, train_df['Finding Labels'], test_size=0.10, random_state=42)
 
-#     # # make a list of lists
-#     # y_train = [[y] for y in y_train]
+    x_train = np.expand_dims(x_train, -1)
+    x_test = np.expand_dims(x_test, -1)
 
-#     # encoder = OneHotEncoder()
-#     # encoder.fit(y_train)
-#     # y_train = encoder.transform(y_train).toarray()
+    print (x_train.shape)
+    #print (y_train.shape)
 
-# def train_model():
-#     # training the model
-#     optim = Adam(learning_rate=0.001) #learning rate is the "eta" in our equation
-#     loss_fn = CategoricalCrossentropy()
+    # make a list of lists
+    y_train = [[y] for y in y_train]
+    print(y_train)
 
-#     model.compile(loss=loss_fn,optimizer=optim,metrics=["accuracy"])
+    encoder = OneHotEncoder()
+    encoder.fit(y_train)
+    y_train = encoder.transform(y_train).toarray()
 
-#     batch_size = 128
-#     epochs = 15
+    return x_train, y_train, x_test, y_test
 
-#     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs)
+def train_model(model, x_train, y_train):
+    # training the model
+    optim = Adam(learning_rate=0.001) #learning rate is the "eta" in our equation
+    loss_fn = CategoricalCrossentropy()
 
-# def predict_labels():
-#     # predictions
-#     predictions = model.predict(x_test)
-#     print (predictions)
-#     predicted_class_indices = predictions.argmax(axis=1)
-#     print (predicted_class_indices)
-#     acc = accuracy_score(y_test,predicted_class_indices)
-#     print (f"Testing accuracy = {acc}")
+    model.compile(loss=loss_fn,optimizer=optim,metrics=["accuracy"])
+
+    batch_size = 128
+    epochs = 15
+
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs)
+
+def predict_labels(model, x_test, y_test):
+    # predictions
+    predictions = model.predict(x_test)
+    print (predictions)
+    predicted_class_indices = predictions.argmax(axis=1)
+    print (predicted_class_indices)
+    acc = accuracy_score(y_test,predicted_class_indices)
+    print (f"Testing accuracy = {acc}")
