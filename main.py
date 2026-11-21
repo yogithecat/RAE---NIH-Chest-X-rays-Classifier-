@@ -1,22 +1,28 @@
-from utils import *
+import utilities as u
+from model import Model
+import constants as c
+from sklearn.preprocessing import MultiLabelBinarizer
+
 
 def main():
     # Limit data to first 4999 entries from folder images_001
-    df = load_data().head(4999)
+    df = u.load_data().head(4999)
 
-    df = clean_dataframe(df)
+    df = u.clean_dataframe(df)
+    df_filt = u.filter_classes(df)
+    u.df_analysis(df_filt)
 
-    df_filt = filter_classes(df)
-    df_analysis(df_filt)
+    model = Model((206, 206))
+    x_train, x_test, y_train, y_test = u.get_train_test_split(df_filt, 2, (206, 206))
 
+    mlb = MultiLabelBinarizer(classes=c.CLASSES_LIST)
+    y_train_lists = [s.split("|") if isinstance(s, str) and s else [] for s in y_train]
+    y_train_bin = mlb.fit_transform(y_train_lists)
 
-    
+    model.train_model(x_train, y_train_bin)
 
-    # Note: Not implemented yet
-    model = make_model()
-    x_train, y_train, x_test, y_test = get_train_test_split(df, 5)
-    train_model(model, x_train, y_train)
-    predict_labels(model, x_test, y_test)
+    metrics = model.predict_multilabel(x_test, y_test, mlb, threshold=0.5)
+    print(metrics)
 
 if __name__ == '__main__':
     main()
