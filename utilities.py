@@ -112,13 +112,26 @@ def get_train_test_split(df: pd.DataFrame, train_count: int, image_size: tuple[i
         train_df = pd.concat([train_df, df.loc[df['Finding Labels'] == cl].head(train_count)], axis=0)
 
 
-    images = []
-    for x in train_df['Image Index']:
-        image = cv2.imread('RAE---NIH-Chest-X-rays-Classifier-/data/images/' + x, cv2.IMREAD_GRAYSCALE)
-        image = cv2.resize(image, image_size, interpolation=cv2.INTER_AREA)
-        images.append(image)
 
-    x_train, x_test, y_train, y_test = train_test_split(images, train_df['Finding Labels'], test_size=0.10, random_state=42)
+    # build a {filename: full_path} map in one disk scan
+    file_map = {
+        p.name: p 
+        for p in c.IMAGES_PATH.glob("images_*/images/*") 
+        if p.is_file()
+    }
+    # matching image files with their rows in the csv file
+    images = []
+    for idx in train_df['Image Index']:
+        if idx not in file_map:
+            raise FileNotFoundError(f"Could not find the image file for index {idx}")
+
+        image = cv2.imread(str(file_map[idx]), cv2.IMREAD_GRAYSCALE)
+
+        image = cv2.resize(image, image_size, interpolation=cv2.INTER_AREA)
+            
+        images.append(image)
+          
+    x_train, x_test, y_train, y_test = train_test_split(images, train_df['Finding Labels'], test_size=0.10, random_state=c.SEED)
 
     x_train = np.expand_dims(x_train, -1)
     x_test = np.expand_dims(x_test, -1)
